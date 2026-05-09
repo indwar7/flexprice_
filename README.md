@@ -1,107 +1,179 @@
 # FlexPrice Component Library — Take-Home
 
-A Storybook-driven component library extracted from the FlexPrice admin app
-([github.com/flexprice/flexprice-front](https://github.com/flexprice/flexprice-front)),
-built for the FlexPrice Frontend Intern take-home.
+A Storybook-driven component library and a working dashboard demo, built for
+the FlexPrice Frontend Intern take-home. Inspired by the structure of the
+real FlexPrice admin app at
+[github.com/flexprice/flexprice-front](https://github.com/flexprice/flexprice-front).
 
-**Live Storybook:** https://flexprice-psi.vercel.app
+- **Live Storybook (lands on the dashboard):** https://flexprice-psi.vercel.app
+- **Stack:** React 18 · TypeScript · Vite · Tailwind CSS · Storybook 8 ·
+  Zustand · TanStack Query v5 · TanStack Virtual · Vitest · React Testing Library
 
-## Stack
+---
 
-React 18 · TypeScript · Vite · Tailwind CSS · Storybook 8 · Zustand ·
-TanStack Query v5 · TanStack Virtual · Vitest · React Testing Library
+## My approach
 
-## What's inside
+I treated this as two questions, in order: **what would a real FlexPrice
+designer expect from this library?** and **how do I prove that with code,
+not screenshots?**
 
-### 15 components across atoms / molecules / organisms
+### 1. Ground the design in the actual product
 
-| Tier      | Component             | Path                                                        |
-| --------- | --------------------- | ----------------------------------------------------------- |
-| Atom      | Button                | `src/components/atoms/Button`                               |
-| Atom      | Badge                 | `src/components/atoms/Badge`                                |
-| Atom      | Input                 | `src/components/atoms/Input`                                |
-| Atom      | Select / Dropdown     | `src/components/atoms/Select`                               |
-| Atom      | Tooltip               | `src/components/atoms/Tooltip`                              |
-| Atom      | Spinner / LoadingState| `src/components/atoms/Spinner`                              |
-| Molecule  | MetricCard            | `src/components/molecules/MetricCard`                       |
-| Molecule  | DataTable             | `src/components/molecules/DataTable` (virtualisation built-in) |
-| Molecule  | InvoiceStatusBadge    | `src/components/molecules/InvoiceStatusBadge`               |
-| Molecule  | UsageBar / MeterProgress | `src/components/molecules/UsageBar`                      |
-| Molecule  | DateRangePicker       | `src/components/molecules/DateRangePicker`                  |
-| Molecule  | SearchBar             | `src/components/molecules/SearchBar`                        |
-| Organism  | SidebarNav            | `src/components/organisms/SidebarNav`                       |
-| Organism  | PricingTierTable      | `src/components/organisms/PricingTierTable`                 |
-| Organism  | EmptyState            | `src/components/organisms/EmptyState`                       |
+Before writing components I read the open-source `flexprice-front` repo
+end-to-end. From its `tailwind.config.js`, `index.css`, `MainLayout.tsx`,
+`SidebarItem.tsx`, and the `Dashboard/*` molecule files I extracted:
 
-Every component has:
-- A JSDoc-documented public API
-- A Storybook story file with **Default**, **Variants**, fully-typed
-  Controls, and docs
-- An interaction test (`@storybook/test` play function) for the
-  interactive ones (Button, Input, Select, SearchBar)
+- The exact brand color (`#3293D9`) and its paired soft surface (`#E5F0FF`).
+- The unified `6px` border radius — not the shadcn default of `0.5rem`.
+- A near-black primary (`hsl(222 47% 11%)`) used for buttons and headers,
+  with blue reserved as an *accent* on icons and links — the opposite of
+  what most "shadcn dashboards" do.
+- Typography stack (Geist primary, JetBrains Mono for figures).
+- The fact that real FlexPrice color-codes status (`text-blue-600` for the
+  active sidebar icon, semantic red/amber for invoice issues), so my
+  components do the same.
 
-### Advanced challenges — all three implemented
+These tokens live as HSL CSS variables in `src/styles/globals.css`, mirrored
+in `tailwind.config.js`, with a full dark-mode set toggleable from the
+Storybook toolbar.
 
-**A. `useFilterStore`** — `src/lib/useFilterStore.ts`
+### 2. Build the library bottom-up, document everything in Storybook
 
-Zustand store factory that:
-- Persists each page's filter state to `sessionStorage`, keyed by route
-  (e.g. `filters:invoices`, `filters:customers`).
-- Exposes `setFilter`, `setFilters`, `resetFilters`, `getFilters`.
-- Mirrors only an 8-char fingerprint to the URL via `useFilterFingerprint`,
-  so the page is bookmarkable without bloating the query string.
+I followed the atoms → molecules → organisms hierarchy the brief asked for.
+Each component:
 
-Demo: **Molecules → DataTable → WithFilterStore** in Storybook.
+- Has a single responsibility and a strict, JSDoc'd public API.
+- Ships a `*.stories.tsx` with a **Default** story, **variants**, fully-typed
+  Controls, and a docs page generated by `@storybook/blocks`.
+- If it's interactive (Button, Input, Select, SearchBar), it ships an
+  **interaction test** using `@storybook/test` `play` functions —
+  reviewers can run real user-event flows from inside Storybook.
 
-**B. Virtualised `DataTable`** — `src/components/molecules/DataTable/DataTable.tsx`
+Atoms first because molecules consume them; molecules second because
+organisms consume both. The `DataTable` was the highest-leverage
+investment — pagination, sort, loading skeleton, empty state, virtualisation,
+density modes, and row click are all expressed as opt-in props on a single
+component.
 
-Row virtualisation via `@tanstack/react-virtual`. Only the rows in the
-viewport plus an overscan buffer are mounted, so 10k+ rows scroll smoothly.
-Rows support dynamic height measurement.
+### 3. Solve the three challenges in their own files, in their own commits, with their own tests
 
-Demo: **Molecules → DataTable → Virtualised10kRows**.
+- **A. `useFilterStore`** (`src/lib/useFilterStore.ts`) — a Zustand store
+  *factory*. Each page calls `createFilterStore({ pageKey, defaults })` to
+  get a typed hook, persisted to `sessionStorage` under `filters:<pageKey>`.
+  Instead of serialising the full filter object to the URL (which the
+  prompt explicitly warned against), I write only an **8-char FNV-1a
+  fingerprint** via `useFilterFingerprint`. The fingerprint is stable across
+  key order (see `stableStringify`) and cheap to compute on every render,
+  so the URL stays clean while the page is still bookmarkable.
 
-**C. `createQueryConfig`** — `src/lib/queryConfig.ts`
+- **B. Virtualised `DataTable`** — instead of building a separate
+  `<VirtualList>` and duplicating column/sort/empty plumbing, I added a
+  single `virtual: { enabled, estimateRowHeight, containerHeight, overscan }`
+  prop driven by `@tanstack/react-virtual`. The 10k-row demo proves the
+  performance claim.
 
-Typed helper around TanStack Query v5:
-- Global default of `staleTime: 5m`, `gcTime: 10m`.
-- `REALTIME` (0 / 1m), `DEFAULT` (5m / 10m), `STATIC` (30m / 1h) presets.
-- Per-call-site overrides: `createQueryConfig('DEFAULT', { staleTime: 60_000 })`.
-- `buildQueryClient()` to apply the same defaults at the QueryClient level.
+- **C. `createQueryConfig`** (`src/lib/queryConfig.ts`) — a typed builder
+  for TanStack Query v5 with three named presets (`REALTIME` / `DEFAULT` /
+  `STATIC`) plus per-call-site overrides. A companion `buildQueryClient()`
+  helper applies the same defaults globally so a screen's caching behaviour
+  is one preset name, not five inline numbers.
 
-Demo: **Lib → QueryConfig (Challenge C)** in Storybook. Behaviour is also
-documented in `src/lib/queryConfig.test.ts`.
+### 4. Prove it works with a composed dashboard
 
-### Tests
+A library of isolated components doesn't tell you whether they *belong
+together*. I built `Showcase/Dashboard` — a fully routable mini-app where
+clicking each sidebar item swaps the content area to a real, populated
+view: Dashboard, Analytics, Plans, Customers (filterable), Invoices
+(sortable + paginated), Subscriptions, Credits.
 
-47 Vitest tests across 8 files:
+The dashboard itself is laid out to mirror what FlexPrice actually ships
+on its home page: revenue trend chart with currency selector, payment-status
+breakdown card, recent-subscriptions donut. The chart and donut are
+rendered inline as SVG (no Recharts dependency) — an intentional choice to
+keep the library lightweight and demonstrate that I can write the chart
+math myself when needed.
 
-| File                                                  | Tests | What's covered                                  |
-| ----------------------------------------------------- | ----- | ----------------------------------------------- |
-| `src/lib/format.test.ts`                              | 9     | Currency, compact number, trend, date formatting |
-| `src/lib/status.test.ts`                              | 8     | Invoice / plan / subscription status mapping     |
-| `src/lib/pricing.test.ts`                             | 7     | Graduated + volume tier pricing maths            |
-| `src/lib/queryConfig.test.ts`                         | 5     | Preset overrides, client defaults                |
-| `src/lib/useFilterStore.test.ts`                      | 7     | Filter store + fingerprint stability             |
-| `src/components/atoms/Button/Button.test.tsx`         | 5     | Click, loading, aria-busy, variants              |
-| `src/components/molecules/InvoiceStatusBadge/...test.tsx` | 3 | Label humanisation, icon toggling                |
-| `src/components/molecules/UsageBar/UsageBar.test.tsx` | 3     | aria-valuenow, unmetered, capping at 100%        |
+A Vercel rewrite redirects bare `/` to `?path=/story/showcase-dashboard--dashboard`
+so reviewers see the dashboard the moment the page loads, not Storybook's
+introduction page.
+
+### 5. Test the things that matter
+
+47 Vitest tests across 8 files. I focused on:
+
+- **Pure utility logic** (currency / compact-number / trend / date
+  formatters, status-to-tone mapping, graduated + volume pricing math).
+- **Filter-store contract** (defaults, set/reset, sessionStorage write
+  path, fingerprint stability across key order).
+- **Component behaviour reviewers can't infer from looking** —
+  `aria-busy` on a loading button, `aria-valuenow` on `UsageBar`,
+  status-string humanisation in `InvoiceStatusBadge`.
+
+I deliberately did *not* test rendered class names or copy-paste each
+story into a test — those tests don't catch real bugs, they just slow
+refactors down.
+
+---
+
+## Component inventory
+
+15 components, three tiers:
+
+| Tier      | Component                | Path                                         |
+| --------- | ------------------------ | -------------------------------------------- |
+| Atom      | Button                   | `src/components/atoms/Button`                |
+| Atom      | Badge                    | `src/components/atoms/Badge`                 |
+| Atom      | Input                    | `src/components/atoms/Input`                 |
+| Atom      | Select / Dropdown        | `src/components/atoms/Select`                |
+| Atom      | Tooltip                  | `src/components/atoms/Tooltip`               |
+| Atom      | Spinner / LoadingState   | `src/components/atoms/Spinner`               |
+| Molecule  | MetricCard (+Sparkline)  | `src/components/molecules/MetricCard`        |
+| Molecule  | DataTable (virtualised)  | `src/components/molecules/DataTable`         |
+| Molecule  | InvoiceStatusBadge       | `src/components/molecules/InvoiceStatusBadge`|
+| Molecule  | UsageBar / MeterProgress | `src/components/molecules/UsageBar`          |
+| Molecule  | DateRangePicker          | `src/components/molecules/DateRangePicker`   |
+| Molecule  | SearchBar                | `src/components/molecules/SearchBar`         |
+| Organism  | SidebarNav               | `src/components/organisms/SidebarNav`        |
+| Organism  | PricingTierTable         | `src/components/organisms/PricingTierTable`  |
+| Organism  | EmptyState (with SVG art)| `src/components/organisms/EmptyState`        |
+
+Plus dashboard-only composition primitives in `src/components/dashboard/`:
+`AreaChart`, `Donut`, `RevenueTrendCard`, `InvoiceIssuesCard`,
+`RecentSubscriptionsCard`. These are composed *from* the public 15 and
+exist to power the Showcase view.
+
+## Tests
+
+47 tests across 8 files (`npm run test`):
+
+| File                                                            | Tests | Covers                                              |
+| --------------------------------------------------------------- | ----- | --------------------------------------------------- |
+| `src/lib/format.test.ts`                                        | 9     | Currency, compact number, trend, date formatting    |
+| `src/lib/status.test.ts`                                        | 8     | Invoice / plan / subscription status mapping        |
+| `src/lib/pricing.test.ts`                                       | 7     | Graduated + volume tier pricing math                |
+| `src/lib/useFilterStore.test.ts`                                | 7     | Filter store contract + fingerprint stability       |
+| `src/lib/queryConfig.test.ts`                                   | 5     | Preset overrides, client defaults                   |
+| `src/components/atoms/Button/Button.test.tsx`                   | 5     | Click, loading, `aria-busy`, variants               |
+| `src/components/molecules/UsageBar/UsageBar.test.tsx`           | 3     | `aria-valuenow`, unmetered case, cap at 100%        |
+| `src/components/molecules/InvoiceStatusBadge/...test.tsx`       | 3     | Label humanisation, icon toggling                   |
 
 ## Folder layout
 
 ```
 .
-├── .storybook/             Storybook config
+├── .storybook/             Storybook config (custom theme, dark-mode toggle)
 ├── src/
+│   ├── Showcase.stories.tsx    Composed dashboard with routable sidebar
+│   ├── Introduction.mdx        Storybook landing doc
 │   ├── components/
 │   │   ├── atoms/          Button · Badge · Input · Select · Tooltip · Spinner
 │   │   ├── molecules/      MetricCard · DataTable · InvoiceStatusBadge · UsageBar · DateRangePicker · SearchBar
-│   │   └── organisms/      SidebarNav · PricingTierTable · EmptyState
+│   │   ├── organisms/      SidebarNav · PricingTierTable · EmptyState
+│   │   └── dashboard/      AreaChart · Donut · RevenueTrendCard · InvoiceIssuesCard · RecentSubscriptionsCard
 │   ├── lib/                cn · format · status · pricing · useDebounce · useFilterStore · queryConfig
-│   ├── styles/globals.css  Design tokens (HSL CSS vars, shadcn-style)
+│   ├── styles/globals.css  Design tokens (light + dark)
 │   ├── test/setup.ts       Vitest + jsdom + jest-dom
 │   ├── App.tsx             Vite landing page
-│   ├── Introduction.mdx    Storybook intro
 │   └── main.tsx
 ├── tailwind.config.js
 ├── vite.config.ts
@@ -113,34 +185,40 @@ documented in `src/lib/queryConfig.test.ts`.
 
 ```bash
 npm install
-npm run storybook       # http://localhost:6006
-npm run test            # vitest (one-shot)
-npm run test:watch      # vitest watch mode
-npm run build-storybook # static output -> ./storybook-static
-npm run lint            # tsc --noEmit
+npm run storybook         # http://localhost:6006
+npm run test              # vitest (one-shot)
+npm run test:watch        # vitest watch mode
+npm run build-storybook   # static output → ./storybook-static
+npm run lint              # tsc --noEmit
 ```
 
 ## Deployment
 
-Hosted on Vercel:
-
 - **Production:** https://flexprice-psi.vercel.app
 - Build command: `npm run build-storybook`
 - Output directory: `storybook-static`
-- See `vercel.json` for the full config.
+- A redirect in `vercel.json` sends bare `/` to the Dashboard story.
 
-## Notes on judgement calls
+## Trade-offs and judgement calls
 
-- **shadcn/ui-inspired tokens** rather than copying components. The FlexPrice
-  repo uses HSL CSS variables on top of Tailwind + Radix; I matched that
-  pattern in `src/styles/globals.css`.
+- **One `DataTable`, not two.** Adding `virtual` as a prop instead of
+  shipping a `<VirtualList>` keeps the public surface small and means
+  pagination / sort / empty-state code never gets duplicated.
 - **Money in minor units.** All currency amounts are stored as cents
-  (`amountCents`, `mrrCents`) to avoid float drift; the `formatCurrency`
-  helper divides by 100 at render time.
-- **Filter fingerprint over full state.** I picked an FNV-1a 32-bit hash
-  for the URL parameter — it's stable, key-order-independent
-  (see `stableStringify`), 8 hex chars, and good enough for bookmark
-  routing without the URL bloat the prompt warned about.
-- **Virtualisation lives inside `DataTable`.** A separate
-  `<VirtualList>` would have duplicated the column / sort / empty-state
-  plumbing. The `virtual` prop opts in.
+  (`amountCents`, `mrrCents`) to avoid float drift. `formatCurrency`
+  divides by 100 at render time.
+- **Inline SVG charts.** I considered Recharts for the dashboard, but a
+  ~80-line area chart and a ~40-line donut hand-written keep the bundle
+  lean and demonstrate I'm comfortable with SVG and basic chart math.
+- **FNV-1a hash for the URL fingerprint.** Stable across key order, 8 hex
+  chars, no crypto dependency. Good enough for bookmark routing without
+  the URL bloat the prompt warned about.
+- **Filter store as a factory, not a singleton.** Each page gets its own
+  typed hook (`createFilterStore<InvoiceFilters>(…)`) — enforces
+  per-page schema and avoids one big global filter blob.
+- **Status colors kept on `InvoiceStatusBadge` and `UsageBar`** even after
+  a "make it more minimal" pass, because in a billing UI those colors
+  carry meaning (paid vs. past-due, 50% used vs. 95% used).
+- **No `react-router`.** The Showcase mini-app uses a discriminated-union
+  state machine to switch views — adding a router for a single demo would
+  bloat the dependency tree.
