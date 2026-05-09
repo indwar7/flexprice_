@@ -1,7 +1,7 @@
-# FlexPrice Component Library — Take-Home
+# FlexPrice Component Library —
 
 A Storybook-driven component library and a working dashboard demo, built for
-the FlexPrice Frontend Intern take-home. Inspired by the structure of the
+the FlexPrice. Inspired by the structure of the
 real FlexPrice admin app at
 [github.com/flexprice/flexprice-front](https://github.com/flexprice/flexprice-front).
 
