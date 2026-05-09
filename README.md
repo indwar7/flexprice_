@@ -1,4 +1,4 @@
-# FlexPrice Component Library —
+# FlexPrice Component Library :-)
 
 A Storybook-driven component library and a working dashboard demo, built for
 the FlexPrice. Inspired by the structure of the
