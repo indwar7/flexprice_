@@ -1,0 +1,63 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Introduction" />
+
+# FlexPrice Component Library
+
+A Storybook-driven component library extracted from the FlexPrice admin app
+([github.com/flexprice/flexprice-front](https://github.com/flexprice/flexprice-front)).
+Submitted for the FlexPrice Frontend Intern take-home.
+
+Use the theme toggle in the Storybook toolbar to switch every component
+between light and dark mode.
+
+## Start here
+
+- **[Showcase / Dashboard](?path=/story/showcase-dashboard--dashboard)** — a
+  composed admin view (sidebar + KPIs + sparklines + usage meters + sortable
+  invoices). The fastest way to see how the system feels.
+- **[DataTable / Virtualised10kRows](?path=/story/molecules-datatable--virtualised10k-rows)** — 10,000 rows
+  scrolling smoothly via `@tanstack/react-virtual`.
+- **[DataTable / WithFilterStore](?path=/story/molecules-datatable--with-filter-store)** — Zustand
+  filter persistence with a shallow URL fingerprint.
+- **[Lib / QueryConfig](?path=/story/lib-queryconfig-challenge-c--presets)** — REALTIME / DEFAULT / STATIC
+  presets for TanStack Query v5.
+
+## What's inside
+
+- **15+ components** across `Atoms`, `Molecules`, `Organisms`.
+- **All three advanced challenges** built and demoed.
+- **Light + dark mode** with a global toolbar toggle.
+- **47 Vitest tests** covering utility logic and component behaviour.
+- **Custom Storybook theme** matching the FlexPrice brand.
+
+## Design system
+
+Tokens live in `src/styles/globals.css` as HSL CSS variables — the same
+approach the FlexPrice repo uses on top of Tailwind + Radix. Brand
+intelligence lifted from the open-source `flexprice-front` Tailwind config:
+
+| Role             | Value                                                                  |
+| ---------------- | ---------------------------------------------------------------------- |
+| Primary          | `hsl(222 47% 11%)` — near-black                                        |
+| Brand accent     | `#3293D9` (FlexPrice blue) with a soft `#E5F0FF` paired surface         |
+| Background       | `#F8FAFC` (slate-50)                                                    |
+| Muted foreground | `#64748B` (slate-500)                                                   |
+| Radius           | `6px` (matches FlexPrice's unified `--radius`)                         |
+| Font             | Geist primary, JetBrains Mono for code                                  |
+
+## Folder layout
+
+```text
+src/
+  components/
+    atoms/      Button · Badge · Input · Select · Tooltip · Spinner
+    molecules/  MetricCard (+Sparkline) · DataTable (virtualised) ·
+                InvoiceStatusBadge · UsageBar · DateRangePicker · SearchBar
+    organisms/  SidebarNav · PricingTierTable · EmptyState (with SVG illustrations)
+  lib/
+    cn · format · status · pricing · useDebounce
+    useFilterStore   ← Challenge A
+    queryConfig      ← Challenge C
+  styles/globals.css   ← design tokens (light + dark)
+```
